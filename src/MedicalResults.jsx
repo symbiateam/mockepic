@@ -44,7 +44,8 @@ const MedicalResults = () => {
 
   // Initialize FHIR client
   const fhirClient = new Client({
-    baseUrl: 'https://hapi.fhir.org/baseR4'
+    baseUrl: 'https://hapi.fhir.org/baseR4',
+    customHeaders: {} // No auth needed for public test server
   });
 
   // Load vitals from FHIR server
@@ -226,11 +227,11 @@ const MedicalResults = () => {
   // Load data when component mounts or tab changes
   useEffect(() => {
     if (activeTab === 'vitals') {
-        loadVitals();
+      loadVitals();
     } else {
-        loadChemistry();
+      loadChemistry();
     }
-  }, [activeTab]); 
+  }, [activeTab]);
 
   return (
     <div className="w-full min-h-screen bg-gray-100 p-4">

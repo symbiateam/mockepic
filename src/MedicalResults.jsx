@@ -13,23 +13,24 @@ const MedicalResults = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const chemistryFields = [
-    { name: 'sodium', label: 'Sodium' },
-    { name: 'potassium', label: 'Potassium' },
-    { name: 'chloride', label: 'Chloride' },
-    { name: 'carbonDioxide', label: 'Carbon Dioxide Total' },
-    { name: 'urea', label: 'Urea Nitrogen, Blood (BUN)' },
-    { name: 'creatinine', label: 'Creatinine Blood' },
-    { name: 'glucose', label: 'Glucose' },
-    { name: 'calcium', label: 'Calcium' },
-    { name: 'protein', label: 'Protein' },
-    { name: 'albumin', label: 'Albumin' },
-    { name: 'alp', label: 'Alkaline Phosphatase (ALP)' },
-    { name: 'ast', label: 'Aspartate Transaminase (AST)' },
-    { name: 'bilirubinTotal', label: 'Bilirubin Total' },
-    { name: 'alt', label: 'Alanine Transferase (ALT)' }
-  ];
+    { name: 'sodium', label: 'Sodium', code: '2951-2', unit: 'mmol/L' },
+    { name: 'potassium', label: 'Potassium', code: '2823-3', unit: 'mmol/L' },
+    { name: 'chloride', label: 'Chloride', code: '2075-0', unit: 'mmol/L' },
+    { name: 'carbonDioxide', label: 'Carbon Dioxide Total', code: '2028-9', unit: 'mmol/L' },
+    { name: 'urea', label: 'Urea Nitrogen, Blood (BUN)', code: '3094-0', unit: 'mg/dL' },
+    { name: 'creatinine', label: 'Creatinine Blood', code: '2160-0', unit: 'mg/dL' },
+    { name: 'glucose', label: 'Glucose', code: '2339-0', unit: 'mg/dL' },
+    { name: 'calcium', label: 'Calcium', code: '17861-6', unit: 'mg/dL' },
+    { name: 'protein', label: 'Protein', code: '2885-2', unit: 'g/dL' },
+    { name: 'albumin', label: 'Albumin', code: '1751-7', unit: 'g/dL' },
+    { name: 'alp', label: 'Alkaline Phosphatase (ALP)', code: '6768-6', unit: 'U/L' },
+    { name: 'ast', label: 'Aspartate Transaminase (AST)', code: '1920-8', unit: 'U/L' },
+    { name: 'bilirubinTotal', label: 'Bilirubin Total', code: '1975-2', unit: 'mg/dL' },
+    { name: 'alt', label: 'Alanine Transferase (ALT)', code: '1742-6', unit: 'U/L' }
+];
 
   const vitalsFields = [
     { name: 'temperature', label: 'Temperature', unit: '°F', code: '8310-5', display: 'Body temperature' },
@@ -125,6 +126,89 @@ const MedicalResults = () => {
     setIsLoading(false);
   };
 
+  const loadChemistry = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        const response = await fhirClient.search({
+            resourceType: 'Observation',
+            searchParams: {
+                category: 'laboratory',
+                _sort: '-date',
+                _count: 50
+            }
+        });
+
+        if (response.entry && response.entry.length > 0) {
+            const newChemistry = {};
+            response.entry.forEach(entry => {
+                const observation = entry.resource;
+                const matchingField = chemistryFields.find(field => field.code === observation.code?.coding?.[0]?.code);
+                if (matchingField) {
+                    const date = new Date(observation.effectiveDateTime).toLocaleString();
+                    newChemistry[`${matchingField.name}-${date}`] = observation.valueQuantity?.value?.toString() || '';
+                }
+            });
+            setChemistryValues(newChemistry);
+        }
+    } catch (err) {
+        setError('Error loading chemistry values');
+        console.error(err);
+    }
+    setIsLoading(false);
+  };
+
+  const saveChemistry = async () => {
+    setIsLoading(true);
+    setError(null);
+    setSaveSuccess(false);
+    try {
+        for (const [key, value] of Object.entries(chemistryValues)) {
+            if (value) {
+                const [fieldName, date] = key.split('-');
+                const field = chemistryFields.find(f => f.name === fieldName);
+                if (field) {
+                    const observation = {
+                        resourceType: 'Observation',
+                        status: 'preliminary',
+                        effectiveDateTime: new Date(date).toISOString(),
+                        category: [{
+                            coding: [{
+                                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+                                code: 'laboratory',
+                                display: 'Laboratory'
+                            }]
+                        }],
+                        code: {
+                            coding: [{
+                                system: 'http://loinc.org',
+                                code: field.code,
+                                display: field.label
+                            }]
+                        },
+                        valueQuantity: {
+                            value: parseFloat(value),
+                            unit: field.unit,
+                            system: 'http://unitsofmeasure.org'
+                        }
+                    };
+
+                    await fhirClient.create({
+                        resourceType: 'Observation',
+                        body: observation
+                    });
+                }
+            }
+        }
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+        setError('Error saving chemistry values');
+        console.error(err);
+    }
+    setIsLoading(false);
+  };
+
   const handleChemistryChange = (field, date, value) => {
     setChemistryValues(prev => ({
       ...prev,
@@ -142,14 +226,17 @@ const MedicalResults = () => {
   // Load data when component mounts or tab changes
   useEffect(() => {
     if (activeTab === 'vitals') {
-      loadVitals();
+        loadVitals();
+    } else {
+        loadChemistry();
     }
-  }, [activeTab]);
+  }, [activeTab]); 
 
   return (
     <div className="w-full min-h-screen bg-gray-100 p-4">
       {isLoading && <div className="fixed top-0 left-0 w-full bg-blue-500 text-white p-2 text-center">Loading...</div>}
       {error && <div className="fixed top-0 left-0 w-full bg-red-500 text-white p-2 text-center">{error}</div>}
+      {saveSuccess && <div className="fixed top-0 left-0 w-full bg-green-500 text-white p-2 text-center">Save successful!</div>}
       
       {/* Top Navigation */}
       <div className="bg-gray-200 mb-4 flex">
@@ -211,6 +298,17 @@ const MedicalResults = () => {
                   {isLoading ? 'Saving...' : 'Save to FHIR Server'}
                 </button>
               </div>
+              <button
+                onClick={saveChemistry}
+                disabled={isLoading}
+                className={`mt-4 px-4 py-2 rounded ${
+                  isLoading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-500 hover:bg-blue-600'
+                  } text-white`}
+                >
+    {isLoading ? 'Saving...' : 'Save to FHIR Server'}
+</button>
             </div>
           ) : (
             <div>

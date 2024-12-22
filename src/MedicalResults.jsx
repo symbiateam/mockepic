@@ -261,9 +261,6 @@ const MedicalResults = () => {
           <div className="font-bold mb-2">
             {activeTab === 'vitals' ? 'VITALS' : 'LABORATORY'}
           </div>
-          {activeTab === 'results' && (
-            <div className="pl-4 text-blue-600">CHEMISTRY</div>
-          )}
         </div>
 
         {/* Main Content */}

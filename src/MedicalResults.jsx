@@ -296,20 +296,9 @@ const MedicalResults = () => {
                       : 'bg-blue-500 hover:bg-blue-600'
                   } text-white`}
                 >
-                  {isLoading ? 'Saving...' : 'Save to FHIR Server'}
+                  {isLoading ? 'Saving...' : 'Save Vitals'}
                 </button>
               </div>
-              <button
-                onClick={saveChemistry}
-                disabled={isLoading}
-                className={`mt-4 px-4 py-2 rounded ${
-                  isLoading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-500 hover:bg-blue-600'
-                  } text-white`}
-                >
-    {isLoading ? 'Saving...' : 'Save to FHIR Server'}
-</button>
             </div>
           ) : (
             <div>
@@ -345,6 +334,17 @@ const MedicalResults = () => {
                     ))}
                   </tbody>
                 </table>
+                <button
+                  onClick={saveChemistry}
+                  disabled={isLoading}
+                  className={`mt-4 px-4 py-2 rounded ${
+                    isLoading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white`}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Labs'}
+                </button>
               </div>
             </div>
           )}

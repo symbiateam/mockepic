@@ -143,7 +143,7 @@ const MedicalResults = () => {
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://mockepic.onrender.com');
+      const result = await client.create(obs);
       const data = await response.json();
       const newVitals = {};
       data.forEach(observation => {
@@ -324,7 +324,7 @@ const MedicalResults = () => {
   const loadChemistry = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://mockepic.onrender.com');
+      const result = await client.create(obs);
       const data = await response.json();
       const newChemistry = {};
       data.forEach(observation => {

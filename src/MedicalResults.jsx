@@ -1,3 +1,41 @@
+// backend/server.js
+const express = require('express');
+const cors = require('cors');
+const { Client } = require('fhir-kit-client');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const fhirClient = new Client({
+  baseUrl: 'https://hapi.fhir.org/baseR4'
+});
+
+app.post('/api/observations', async (req, res) => {
+  try {
+    const result = await fhirClient.create({
+      resourceType: 'Observation',
+      body: req.body
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/observations', async (req, res) => {
+  try {
+    const result = await fhirClient.search({
+      resourceType: 'Observation',
+      searchParams: req.query
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 import React, { useState, useEffect } from 'react';
 import Client from 'fhir-kit-client';
 
@@ -30,7 +68,7 @@ const MedicalResults = () => {
     { name: 'ast', label: 'Aspartate Transaminase (AST)', code: '1920-8', unit: 'U/L' },
     { name: 'bilirubinTotal', label: 'Bilirubin Total', code: '1975-2', unit: 'mg/dL' },
     { name: 'alt', label: 'Alanine Transferase (ALT)', code: '1742-6', unit: 'U/L' }
-];
+  ];
 
   const vitalsFields = [
     { name: 'temperature', label: 'Temperature', unit: '°F', code: '8310-5', display: 'Body temperature' },
@@ -41,6 +79,21 @@ const MedicalResults = () => {
   ];
 
   const dates = ['9/19/21 12:30', '9/19/21 10:00', '9/18/21 15:00', '9/18/21 11:00', '9/13/21 13:00'];
+
+  useEffect(() => {
+    // Load saved data from localStorage
+    const savedVitals = localStorage.getItem('vitals');
+    const savedChemistry = localStorage.getItem('chemistry');
+    
+    if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
+    if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
+    
+    if (activeTab === 'vitals') {
+      loadVitals();
+    } else {
+      loadChemistry();
+    }
+  }, [activeTab]);
 
   // Initialize FHIR client
   const fhirClient = new Client({
@@ -82,44 +135,48 @@ const MedicalResults = () => {
     setIsLoading(false);
   };
 
-  // Save vitals to FHIR server
   const saveVitals = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      for (const field of vitalsFields) {
-        if (vitalsValues[field.name]) {
+      // Save to localStorage
+      localStorage.setItem('vitals', JSON.stringify(vitalsValues));
+      
+      // Save to FHIR server
+      const responses = await Promise.all(
+        vitalsFields.map(async field => {
+          if (!vitalsValues[field.name]) return;
+          
           const observation = {
             resourceType: 'Observation',
             status: 'preliminary',
             category: [{
               coding: [{
                 system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-                code: 'vital-signs',
-                display: 'Vital Signs'
+                code: 'vital-signs'
               }]
             }],
             code: {
               coding: [{
                 system: 'http://loinc.org',
-                code: field.code,
-                display: field.display
+                code: field.code
               }]
             },
             valueQuantity: {
               value: parseFloat(vitalsValues[field.name]),
-              unit: field.unit,
-              system: 'http://unitsofmeasure.org'
+              unit: field.unit
             }
           };
 
-          await fhirClient.create({
-            resourceType: 'Observation',
-            body: observation
+          return fetch('http://localhost:3001/api/observations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(observation)
           });
-        }
-      }
-      alert('Vital signs saved successfully to FHIR server!');
+        })
+      );
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError('Error saving vital signs');
       console.error(err);
@@ -161,51 +218,55 @@ const MedicalResults = () => {
 
   const saveChemistry = async () => {
     setIsLoading(true);
-    setError(null);
-    setSaveSuccess(false);
     try {
-        for (const [key, value] of Object.entries(chemistryValues)) {
-            if (value) {
-                const [fieldName, date] = key.split('-');
-                const field = chemistryFields.find(f => f.name === fieldName);
-                if (field) {
-                    const observation = {
-                        resourceType: 'Observation',
-                        status: 'preliminary',
-                        effectiveDateTime: new Date(date).toISOString(),
-                        category: [{
-                            coding: [{
-                                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-                                code: 'laboratory',
-                                display: 'Laboratory'
-                            }]
-                        }],
-                        code: {
-                            coding: [{
-                                system: 'http://loinc.org',
-                                code: field.code,
-                                display: field.label
-                            }]
-                        },
-                        valueQuantity: {
-                            value: parseFloat(value),
-                            unit: field.unit,
-                            system: 'http://unitsofmeasure.org'
-                        }
-                    };
+      // Save to localStorage
+      localStorage.setItem('chemistry', JSON.stringify(chemistryValues));
+      
+      // Save to FHIR server
+      const observations = Object.entries(chemistryValues).map(([key, value]) => {
+        if (!value) return null;
+        
+        const [fieldName, date] = key.split('-');
+        const field = chemistryFields.find(f => f.name === fieldName);
+        
+        return {
+          resourceType: 'Observation',
+          status: 'preliminary',
+          effectiveDateTime: new Date(date).toISOString(),
+          category: [{
+            coding: [{
+              system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+              code: 'laboratory'
+            }]
+          }],
+          code: {
+            coding: [{
+              system: 'http://loinc.org',
+              code: field.code
+            }]
+          },
+          valueQuantity: {
+            value: parseFloat(value),
+            unit: field.unit
+          }
+        };
+      }).filter(Boolean);
 
-                    await fhirClient.create({
-                        resourceType: 'Observation',
-                        body: observation
-                    });
-                }
-            }
-        }
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+      await Promise.all(
+        observations.map(obs =>
+          fetch('http://localhost:3001/api/observations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(obs)
+          })
+        )
+      );
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-        setError('Error saving chemistry values');
-        console.error(err);
+      setError('Error saving chemistry values');
+      console.error(err);
     }
     setIsLoading(false);
   };
@@ -223,15 +284,6 @@ const MedicalResults = () => {
       [field]: value
     }));
   };
-
-  // Load data when component mounts or tab changes
-  useEffect(() => {
-    if (activeTab === 'vitals') {
-      loadVitals();
-    } else {
-      loadChemistry();
-    }
-  }, [activeTab]);
 
   return (
     <div className="w-full min-h-screen bg-gray-100 p-4">

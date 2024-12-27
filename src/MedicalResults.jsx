@@ -44,27 +44,38 @@ const MedicalResults = () => {
 
   const dates = ['9/19/21 12:30', '9/19/21 10:00', '9/18/21 15:00', '9/18/21 11:00', '9/13/21 13:00'];
 
-  useEffect(() => {
-    FHIR.oauth2.ready()
-      .then(clientInstance => {
-        setClient(clientInstance);
-        const savedVitals = localStorage.getItem('vitals');
-        const savedChemistry = localStorage.getItem('chemistry');
+    useEffect(() => {
+      FHIR.oauth2.ready()
+        .then(clientInstance => {
+          console.log('FHIR client initialized:', clientInstance);
+          setClient(clientInstance);
+        })
+        .catch(err => {
+          console.error('FHIR auth error:', err);
+        });
+    }, []);
+  
+  // useEffect(() => {
+  //   FHIR.oauth2.ready()
+  //     .then(clientInstance => {
+  //       setClient(clientInstance);
+  //       const savedVitals = localStorage.getItem('vitals');
+  //       const savedChemistry = localStorage.getItem('chemistry');
         
-        if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
-        if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
+  //       if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
+  //       if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
         
-        if (activeTab === 'vitals') {
-          loadVitals();
-        } else {
-          loadChemistry();
-        }
-      })
-      .catch(err => {
-        setError('Authentication failed');
-        console.error(err);
-      });
-  }, [activeTab]);
+  //       if (activeTab === 'vitals') {
+  //         loadVitals();
+  //       } else {
+  //         loadChemistry();
+  //       }
+  //     })
+  //     .catch(err => {
+  //       setError('Authentication failed');
+  //       console.error(err);
+  //     });
+  // }, [activeTab]);
 
   const fetchPatientData = async (fhirClient) => {
     if (!fhirClient) return;
@@ -153,6 +164,7 @@ const MedicalResults = () => {
   };
 
   const saveVitals = async () => {
+    console.log('Current client:', client);
     if (!client) {
       console.log('Auth state:', await FHIR.oauth2.ready());
       setError('Not authenticated');

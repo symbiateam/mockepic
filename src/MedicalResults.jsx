@@ -61,7 +61,7 @@ const MedicalResults = () => {
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/observations');
+      const response = await fetch('https://mockepic.onrender.com');
       const data = await response.json();
       const newVitals = {};
       data.forEach(observation => {
@@ -204,7 +204,7 @@ const MedicalResults = () => {
   
       // Now POST each Observation to your Node server
       for (const obs of observationsToSend) {
-        const response = await fetch('http://localhost:3001/fhir/Observation', {
+        const response = await fetch('https://mockepic.onrender.com', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(obs)
@@ -227,7 +227,7 @@ const MedicalResults = () => {
   const loadChemistry = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/observations');
+      const response = await fetch('https://mockepic.onrender.com');
       const data = await response.json();
       const newChemistry = {};
       data.forEach(observation => {
@@ -304,7 +304,7 @@ const MedicalResults = () => {
   
       // Now send each built Observation to your Node server
       for (const obs of labsToSend) {
-        const response = await fetch('http://localhost:3001/fhir/Observation', {
+        const response = await fetch('https://mockepic.onrender.com', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(obs)

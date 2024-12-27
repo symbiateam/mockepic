@@ -12,8 +12,9 @@ root.render(
 )
 
 FHIR.oauth2.authorize({
-  clientId: 'whatever', // Public client 
+  clientId: 'whatever',
   scope: 'launch/patient patient/*.write patient/*.read',
   redirectUri: window.location.origin + '/oauth-callback',
-  iss: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
+  iss: 'https://r4.smarthealthit.org', // Changed issuer URL
+  fhirServiceUrl: 'https://r4.smarthealthit.org' // Added FHIR service URL
 });

@@ -6,6 +6,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "express-session": "^1.18.1",
     "fhir-kit-client": "^1.9.2",
     "fhirclient": "^2.5.4",
     "lucide-react": "^0.468.0",

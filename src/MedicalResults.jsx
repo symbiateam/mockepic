@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import FHIR from 'fhirclient';
 
 const MedicalResults = () => {
   const [activeTab, setActiveTab] = useState('vitals');
+  const [client, setClient] = useState(null);
   const [docRefs, setDocRefs] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,19 +45,88 @@ const MedicalResults = () => {
   const dates = ['9/19/21 12:30', '9/19/21 10:00', '9/18/21 15:00', '9/18/21 11:00', '9/13/21 13:00'];
 
   useEffect(() => {
-    // Load saved data from localStorage
-    const savedVitals = localStorage.getItem('vitals');
-    const savedChemistry = localStorage.getItem('chemistry');
-    
-    if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
-    if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
-    
-    if (activeTab === 'vitals') {
-      loadVitals();
-    } else {
-      loadChemistry();
-    }
+    FHIR.oauth2.ready()
+      .then(clientInstance => {
+        setClient(clientInstance);
+        const savedVitals = localStorage.getItem('vitals');
+        const savedChemistry = localStorage.getItem('chemistry');
+        
+        if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
+        if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
+        
+        if (activeTab === 'vitals') {
+          loadVitals();
+        } else {
+          loadChemistry();
+        }
+      })
+      .catch(err => {
+        setError('Authentication failed');
+        console.error(err);
+      });
   }, [activeTab]);
+
+  const fetchPatientData = async (fhirClient) => {
+    if (!fhirClient) return;
+    setIsLoading(true);
+    try {
+      const observations = await fhirClient.request('Observation', {
+        patient: fhirClient.patient.id,
+        category: 'vital-signs'
+      });
+      // Process observations and update state
+      setDocRefs(observations.entry || []);
+    } catch (err) {
+      setError('Failed to fetch patient data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!client) {
+      setError('Not authenticated');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const observation = {
+        resourceType: 'Observation',
+        status: 'preliminary',
+        category: [{
+          coding: [{
+            system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+            code: 'vital-signs',
+            display: 'Vital Signs'
+          }]
+        }],
+        code: {
+          coding: [{
+            system: 'http://loinc.org',
+            code: '8310-5',
+            display: 'Body temperature'
+          }]
+        },
+        valueQuantity: {
+          value: parseFloat(vitalsValues.temperature),
+          unit: '°C',
+          system: 'http://unitsofmeasure.org',
+          code: 'Cel'
+        }
+      };
+
+      await client.create(observation);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setError('Failed to save observation');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Load vitals from FHIR server
   const loadVitals = async () => {
@@ -82,26 +153,27 @@ const MedicalResults = () => {
   };
 
   const saveVitals = async () => {
+    if (!client) {
+      setError('Not authenticated');
+      return;
+    }
+   
     try {
-      // We'll build an array of Observations, one for each vital
       const observationsToSend = [];
-  
-      // Temperature (LOINC: 8310-5)
+      
       if (vitalsValues.temperature) {
         observationsToSend.push({
           resourceType: 'Observation',
           status: 'final',
           code: {
-            coding: [
-              {
-                system: 'http://loinc.org',
-                code: '8310-5',
-                display: 'Body temperature'
-              }
-            ]
+            coding: [{
+              system: 'http://loinc.org',
+              code: '8310-5',
+              display: 'Body temperature'
+            }]
           },
           subject: {
-            reference: 'Patient/example' // You can replace "example" with a real Patient ID if you have one
+            reference: `Patient/${client.patient.id}`
           },
           effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
@@ -112,138 +184,119 @@ const MedicalResults = () => {
           }
         });
       }
-  
+   
+      // Similar blocks for height, weight, systolic and diastolic BP...
       // Height (LOINC: 8302-2)
       if (vitalsValues.height) {
         observationsToSend.push({
           resourceType: 'Observation',
           status: 'final',
           code: {
-            coding: [
-              {
-                system: 'http://loinc.org',
-                code: '8302-2',
-                display: 'Body height'
-              }
-            ]
+            coding: [{
+              system: 'http://loinc.org',
+              code: '8302-2',
+              display: 'Body height'
+            }]
           },
           subject: {
-            reference: 'Patient/example'
+            reference: `Patient/${client.patient.id}`
           },
           effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.height),
             unit: 'in',
-            system: 'http://unitsofmeasure.org'
+            system: 'http://unitsofmeasure.org',
+            code: 'in'
           }
         });
       }
-  
+      
       // Weight (LOINC: 29463-7)
       if (vitalsValues.weight) {
         observationsToSend.push({
           resourceType: 'Observation',
           status: 'final',
           code: {
-            coding: [
-              {
-                system: 'http://loinc.org',
-                code: '29463-7',
-                display: 'Body weight'
-              }
-            ]
+            coding: [{
+              system: 'http://loinc.org',
+              code: '29463-7',
+              display: 'Body weight'
+            }]
           },
           subject: {
-            reference: 'Patient/example'
+            reference: `Patient/${client.patient.id}`
           },
           effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.weight),
-            unit: 'lbs.',
-            system: 'http://unitsofmeasure.org'
+            unit: 'lbs',
+            system: 'http://unitsofmeasure.org',
+            code: '[lb_av]'
           }
         });
       }
-  
+      
       // Systolic Blood Pressure (LOINC: 8480-6)
       if (vitalsValues.systolicBloodPressure) {
         observationsToSend.push({
           resourceType: 'Observation',
           status: 'final',
           code: {
-            coding: [
-              {
-                system: 'http://loinc.org',
-                code: '8480-6',
-                display: 'Systolic blood pressure'
-              }
-            ]
+            coding: [{
+              system: 'http://loinc.org',
+              code: '8480-6',
+              display: 'Systolic blood pressure'
+            }]
           },
           subject: {
-            reference: 'Patient/example'
+            reference: `Patient/${client.patient.id}`
           },
           effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.systolicBloodPressure),
             unit: 'mmHg',
-            system: 'http://unitsofmeasure.org'
+            system: 'http://unitsofmeasure.org',
+            code: 'mm[Hg]'
           }
         });
       }
-  
+      
       // Diastolic Blood Pressure (LOINC: 8462-4)
       if (vitalsValues.diastolicBloodPressure) {
         observationsToSend.push({
           resourceType: 'Observation',
           status: 'final',
           code: {
-            coding: [
-              {
-                system: 'http://loinc.org',
-                code: '8462-4',
-                display: 'Diastolic blood pressure'
-              }
-            ]
+            coding: [{
+              system: 'http://loinc.org',
+              code: '8462-4',
+              display: 'Diastolic blood pressure'
+            }]
           },
           subject: {
-            reference: 'Patient/example'
+            reference: `Patient/${client.patient.id}`
           },
           effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.diastolicBloodPressure),
             unit: 'mmHg',
-            system: 'http://unitsofmeasure.org'
+            system: 'http://unitsofmeasure.org',
+            code: 'mm[Hg]'
           }
         });
       }
-  
-      // Now POST each Observation to your Node server (which then forwards to FHIR, presumably)
+      
       for (const obs of observationsToSend) {
-        const response = await fetch('https://mockepic.onrender.com/fhir/Observation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/fhir+json',
-            'Accept': 'application/fhir+json'
-          },
-          body: JSON.stringify(obs)
-        });
-  
-        if (!response.ok) {
-          // Check if there's a more detailed error message:
-          const errorText = await response.text();
-          console.error('Failed to create observation:', errorText);
-          throw new Error(`Failed to create observation: ${errorText}`);
-        }
+        await client.create(obs);
       }
-  
-      // Store the raw input in localStorage (optional)
+   
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
-      setSaveSuccess(true); // Show "Save successful" message
+      setSaveSuccess(true);
     } catch (err) {
       console.error(err);
       setError('Error saving vitals');
     }
-  };  
+   };
   
 
   const loadChemistry = async () => {
@@ -285,74 +338,54 @@ const MedicalResults = () => {
   }
 
   const saveChemistry = async () => {
+    if (!client) {
+      setError('Not authenticated');
+      return;
+    }
+   
     try {
-      // We'll gather all Observations in an array
       const labsToSend = [];
-  
-      // For each lab test definition (sodium, potassium, etc.)
+   
       chemistryFields.forEach((field) => {
-        // For each date in your dates array
         dates.forEach((date) => {
-          // The user input is stored in chemistryValues["<fieldName>-<dateString>"]
           const val = chemistryValues[`${field.name}-${date}`];
           if (val) {
-            // Build a FHIR Observation
             const observation = {
               resourceType: 'Observation',
               status: 'final',
               code: {
-                coding: [
-                  {
-                    system: 'http://loinc.org',
-                    code: field.code,
-                    display: field.label
-                  }
-                ]
+                coding: [{
+                  system: 'http://loinc.org',
+                  code: field.code,
+                  display: field.label
+                }]
               },
               subject: {
-                reference: 'Patient/example' 
-                // You can replace "example" with a real Patient ID if you have one
+                reference: `Patient/${client.patient.id}`
               },
-              effectiveDateTime: parseToISODate(date), // Convert '9/19/21 12:30' to an ISO string
+              effectiveDateTime: parseToISODate(date),
               valueQuantity: {
                 value: parseFloat(val),
                 unit: field.unit,
                 system: 'http://unitsofmeasure.org'
-                // code could be 'mmol/L', 'mg/dL', etc. if you want to be very precise
               }
             };
-  
             labsToSend.push(observation);
           }
         });
       });
-  
-      // Now send each built Observation to your Node server
+   
       for (const obs of labsToSend) {
-        const response = await fetch('https://mockepic.onrender.com/fhir/Observation', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/fhir+json',
-            'Accept': 'application/fhir+json'
-          },
-          body: JSON.stringify(obs)
-        });
-  
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Failed to create lab Observation:', errorText);
-          throw new Error(`Failed to create lab Observation: ${errorText}`);
-        }
+        await client.create(obs);
       }
-  
-      // Optionally save input data locally
+   
       localStorage.setItem('chemistry', JSON.stringify(chemistryValues));
-      setSaveSuccess(true);  // e.g., show "Save successful!"
+      setSaveSuccess(true);
     } catch (err) {
       console.error(err);
       setError('Error saving chemistry values');
     }
-  };  
+   };
 
   const handleVitalsChange = (field, value) => {
     setVitalsValues(prev => ({

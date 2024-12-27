@@ -9,3 +9,9 @@ root.render(
     <App />
   </React.StrictMode>
 )
+
+FHIR.oauth2.authorize({
+  clientId: 'your-client-id',
+  scope: 'launch/patient patient/*.read patient/*.write',
+  redirectUri: window.location.origin + '/oauth-callback'
+});

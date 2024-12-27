@@ -5,21 +5,26 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let observations = [];
+let vitals = [];
+let chemistry = {};
 
-app.post('/api/observations', (req, res) => {
-  const observation = req.body;
-  observations.push(observation);
-  console.log('Stored observation:', observation);
-  res.json({ message: 'Observation stored', observation });
+app.post('/api/vitals', (req, res) => {
+  const vital = req.body;
+  vitals.push(vital);
+  res.json(vital);
 });
 
-app.get('/api/observations', (req, res) => {
-  console.log('Sending observations:', observations);
-  res.json(observations);
+app.get('/api/vitals', (req, res) => {
+  res.json(vitals);
 });
 
-app.listen(3001, () => {
-  console.log('Server running on port 3001');
-  console.log('Current observations:', observations);
+app.post('/api/chemistry', (req, res) => {
+  chemistry = { ...chemistry, ...req.body };
+  res.json(chemistry);
 });
+
+app.get('/api/chemistry', (req, res) => {
+  res.json(chemistry);
+});
+
+app.listen(3001, () => console.log('Server running on port 3001'));

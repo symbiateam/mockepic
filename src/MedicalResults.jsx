@@ -82,52 +82,17 @@ const MedicalResults = () => {
   };
 
   const saveVitals = async () => {
-    setIsLoading(true);
     try {
-      // Save to localStorage
+      await fetch('http://localhost:3001/api/vitals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vitalsValues)
+      });
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
-      
-      // Save to FHIR server
-      const responses = await Promise.all(
-        vitalsFields.map(async field => {
-          if (!vitalsValues[field.name]) return;
-          
-          const observation = {
-            resourceType: 'Observation',
-            status: 'preliminary',
-            category: [{
-              coding: [{
-                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-                code: 'vital-signs'
-              }]
-            }],
-            code: {
-              coding: [{
-                system: 'http://loinc.org',
-                code: field.code
-              }]
-            },
-            valueQuantity: {
-              value: parseFloat(vitalsValues[field.name]),
-              unit: field.unit
-            }
-          };
-
-          return fetch('http://localhost:3001/api/observations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(observation)
-          });
-        })
-      );
-
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      setError('Error saving vital signs');
-      console.error(err);
+      setError('Error saving vitals');
     }
-    setIsLoading(false);
   };
 
   const loadChemistry = async () => {
@@ -151,58 +116,17 @@ const MedicalResults = () => {
   };
 
   const saveChemistry = async () => {
-    setIsLoading(true);
     try {
-      // Save to localStorage
+      await fetch('http://localhost:3001/api/chemistry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chemistryValues)
+      });
       localStorage.setItem('chemistry', JSON.stringify(chemistryValues));
-      
-      // Save to FHIR server
-      const observations = Object.entries(chemistryValues).map(([key, value]) => {
-        if (!value) return null;
-        
-        const [fieldName, date] = key.split('-');
-        const field = chemistryFields.find(f => f.name === fieldName);
-        
-        return {
-          resourceType: 'Observation',
-          status: 'preliminary',
-          effectiveDateTime: new Date(date).toISOString(),
-          category: [{
-            coding: [{
-              system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-              code: 'laboratory'
-            }]
-          }],
-          code: {
-            coding: [{
-              system: 'http://loinc.org',
-              code: field.code
-            }]
-          },
-          valueQuantity: {
-            value: parseFloat(value),
-            unit: field.unit
-          }
-        };
-      }).filter(Boolean);
-
-      await Promise.all(
-        observations.map(obs =>
-          fetch('http://localhost:3001/api/observations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(obs)
-          })
-        )
-      );
-
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError('Error saving chemistry values');
-      console.error(err);
     }
-    setIsLoading(false);
   };
 
   const handleChemistryChange = (field, date, value) => {

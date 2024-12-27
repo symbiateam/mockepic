@@ -12,12 +12,15 @@ const fhirClient = new FhirClient({
 
 app.post('/api/observations', async (req, res) => {
   try {
+    console.log('Received observation:', req.body);
     const result = await fhirClient.create({
       resourceType: 'Observation',
       body: req.body
     });
+    console.log('Created observation:', result);
     res.json(result);
   } catch (error) {
+    console.error('Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -26,10 +29,15 @@ app.get('/api/observations', async (req, res) => {
   try {
     const result = await fhirClient.search({
       resourceType: 'Observation',
-      searchParams: req.query
+      searchParams: {
+        _count: 10,
+        _sort: '-date'
+      }
     });
+    console.log('Retrieved observations:', result);
     res.json(result);
   } catch (error) {
+    console.error('Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -57,39 +57,23 @@ const MedicalResults = () => {
     }
   }, [activeTab]);
 
-  // Initialize FHIR client
-  const fhirClient = new Client({
-    baseUrl: 'https://hapi.fhir.org/baseR4',
-    customHeaders: {} // No auth needed for public test server
-  });
-
   // Load vitals from FHIR server
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const response = await fhirClient.search({
-        resourceType: 'Observation',
-        searchParams: {
-          category: 'vital-signs',
-          _sort: '-date',
-          _count: 1
+      const response = await fetch('http://localhost:3001/api/observations');
+      const data = await response.json();
+      const newVitals = {};
+      data.forEach(observation => {
+        const matchingField = vitalsFields.find(field => field.code === observation.code?.coding?.[0]?.code);
+        if (matchingField) {
+          newVitals[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
         }
       });
-
-      if (response.entry && response.entry.length > 0) {
-        const newVitals = {};
-        response.entry.forEach(entry => {
-          const observation = entry.resource;
-          const matchingField = vitalsFields.find(field => field.code === observation.code?.coding?.[0]?.code);
-          if (matchingField) {
-            newVitals[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
-          }
-        });
-        setVitalsValues(prev => ({
-          ...prev,
-          ...newVitals
-        }));
-      }
+      setVitalsValues(prev => ({
+        ...prev,
+        ...newVitals
+      }));
     } catch (err) {
       setError('Error loading vital signs');
       console.error(err);
@@ -148,32 +132,20 @@ const MedicalResults = () => {
 
   const loadChemistry = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-        const response = await fhirClient.search({
-            resourceType: 'Observation',
-            searchParams: {
-                category: 'laboratory',
-                _sort: '-date',
-                _count: 50
-            }
-        });
-
-        if (response.entry && response.entry.length > 0) {
-            const newChemistry = {};
-            response.entry.forEach(entry => {
-                const observation = entry.resource;
-                const matchingField = chemistryFields.find(field => field.code === observation.code?.coding?.[0]?.code);
-                if (matchingField) {
-                    const date = new Date(observation.effectiveDateTime).toLocaleString();
-                    newChemistry[`${matchingField.name}-${date}`] = observation.valueQuantity?.value?.toString() || '';
-                }
-            });
-            setChemistryValues(newChemistry);
+      const response = await fetch('http://localhost:3001/api/observations');
+      const data = await response.json();
+      const newChemistry = {};
+      data.forEach(observation => {
+        const matchingField = chemistryFields.find(field => field.code === observation.code?.coding?.[0]?.code);
+        if (matchingField) {
+          newChemistry[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
         }
+      });
+      setChemistryValues(newChemistry);
     } catch (err) {
-        setError('Error loading chemistry values');
-        console.error(err);
+      setError('Error loading chemistry values');
+      console.error(err);
     }
     setIsLoading(false);
   };

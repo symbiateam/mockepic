@@ -1,25 +1,25 @@
 const express = require('express');
 const cors = require('cors');
-const FhirClient = require('fhir-kit-client');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const fhirClient = new FhirClient({
-  baseUrl: 'https://r4.smarthealthit.org'
+let observations = [];
+
+app.post('/api/observations', (req, res) => {
+  const observation = req.body;
+  observations.push(observation);
+  console.log('Stored observation:', observation);
+  res.json({ message: 'Observation stored', observation });
 });
 
-app.post('/api/observations', async (req, res) => {
-  try {
-    const result = await fhirClient.create({
-      resourceType: 'Observation',
-      body: req.body
-    });
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+app.get('/api/observations', (req, res) => {
+  console.log('Sending observations:', observations);
+  res.json(observations);
 });
 
-app.listen(3001, () => console.log('Server running on port 3001'));
+app.listen(3001, () => {
+  console.log('Server running on port 3001');
+  console.log('Current observations:', observations);
+});

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Client from 'fhir-kit-client';
 
 const MedicalResults = () => {
   const [activeTab, setActiveTab] = useState('vitals');
+  const [docRefs, setDocRefs] = useState([]);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [chemistryValues, setChemistryValues] = useState({});
   const [vitalsValues, setVitalsValues] = useState({
     temperature: '',
@@ -11,8 +13,6 @@ const MedicalResults = () => {
     systolicBloodPressure: '',
     diastolicBloodPressure: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const chemistryFields = [
@@ -83,17 +83,146 @@ const MedicalResults = () => {
 
   const saveVitals = async () => {
     try {
-      await fetch('http://localhost:3001/api/vitals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(vitalsValues)
-      });
+      // We'll build an array of Observations, one for each vital
+      const observationsToSend = [];
+  
+      // Temperature (LOINC: 8310-5)
+      if (vitalsValues.temperature) {
+        observationsToSend.push({
+          resourceType: 'Observation',
+          status: 'final',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '8310-5',
+                display: 'Body temperature'
+              }
+            ]
+          },
+          valueQuantity: {
+            value: parseFloat(vitalsValues.temperature),
+            unit: '°F',
+            system: 'http://unitsofmeasure.org',
+            code: 'degF'
+          },
+          effectiveDateTime: new Date().toISOString()
+        });
+      }
+  
+      // Height (LOINC: 8302-2)
+      if (vitalsValues.height) {
+        observationsToSend.push({
+          resourceType: 'Observation',
+          status: 'final',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '8302-2',
+                display: 'Body height'
+              }
+            ]
+          },
+          valueQuantity: {
+            value: parseFloat(vitalsValues.height),
+            unit: 'in',
+            system: 'http://unitsofmeasure.org'
+          },
+          effectiveDateTime: new Date().toISOString()
+        });
+      }
+  
+      // Weight (LOINC: 29463-7)
+      if (vitalsValues.weight) {
+        observationsToSend.push({
+          resourceType: 'Observation',
+          status: 'final',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '29463-7',
+                display: 'Body weight'
+              }
+            ]
+          },
+          valueQuantity: {
+            value: parseFloat(vitalsValues.weight),
+            unit: 'lbs.',
+            system: 'http://unitsofmeasure.org'
+          },
+          effectiveDateTime: new Date().toISOString()
+        });
+      }
+  
+      // Systolic Blood Pressure (LOINC: 8480-6)
+      if (vitalsValues.systolicBloodPressure) {
+        observationsToSend.push({
+          resourceType: 'Observation',
+          status: 'final',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '8480-6',
+                display: 'Systolic blood pressure'
+              }
+            ]
+          },
+          valueQuantity: {
+            value: parseFloat(vitalsValues.systolicBloodPressure),
+            unit: 'mmHg',
+            system: 'http://unitsofmeasure.org'
+          },
+          effectiveDateTime: new Date().toISOString()
+        });
+      }
+  
+      // Diastolic Blood Pressure (LOINC: 8462-4)
+      if (vitalsValues.diastolicBloodPressure) {
+        observationsToSend.push({
+          resourceType: 'Observation',
+          status: 'final',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '8462-4',
+                display: 'Diastolic blood pressure'
+              }
+            ]
+          },
+          valueQuantity: {
+            value: parseFloat(vitalsValues.diastolicBloodPressure),
+            unit: 'mmHg',
+            system: 'http://unitsofmeasure.org'
+          },
+          effectiveDateTime: new Date().toISOString()
+        });
+      }
+  
+      // Now POST each Observation to your Node server
+      for (const obs of observationsToSend) {
+        const response = await fetch('http://localhost:3001/fhir/Observation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(obs)
+        });
+        if (!response.ok) {
+          throw new Error('Failed to create observation');
+        }
+      }
+  
+      // Optionally store the raw input in localStorage
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
-      setSaveSuccess(true);
+      setSaveSuccess(true); // Show "Save successful" message
     } catch (err) {
+      console.error(err);
       setError('Error saving vitals');
     }
   };
+  
 
   const loadChemistry = async () => {
     setIsLoading(true);
@@ -115,25 +244,83 @@ const MedicalResults = () => {
     setIsLoading(false);
   };
 
+  function parseToISODate(dateString) {
+    // dateString might be "9/19/21 12:30"
+    // This is a naive parse. Adjust if your date/time format differs.
+    const [mdy, hm] = dateString.split(' ');        // ["9/19/21", "12:30"]
+    const [month, day, year] = mdy.split('/');      // ["9", "19", "21"]
+    const [hour, minute] = hm.split(':');           // ["12", "30"]
+  
+    // Guess that "21" means 2021
+    const fullYear = '20' + year;    // "2021"
+    const dateObj = new Date(fullYear, month - 1, day, hour, minute);
+  
+    // If the date parse fails, fallback to "new Date()" or handle differently
+    if (isNaN(dateObj.getTime())) {
+      return new Date().toISOString();
+    }
+    return dateObj.toISOString();
+  }
+
   const saveChemistry = async () => {
     try {
-      await fetch('http://localhost:3001/api/chemistry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(chemistryValues)
+      // We'll gather all Observations in an array
+      const labsToSend = [];
+  
+      // For each lab test definition (sodium, potassium, etc.)
+      chemistryFields.forEach((field) => {
+        // For each date in your dates array
+        dates.forEach((date) => {
+          // The user input is stored in chemistryValues["<fieldName>-<dateString>"]
+          const val = chemistryValues[`${field.name}-${date}`];
+          if (val) {
+            // Build a FHIR Observation
+            const observation = {
+              resourceType: 'Observation',
+              status: 'final',
+              code: {
+                coding: [
+                  {
+                    system: 'http://loinc.org',
+                    code: field.code,
+                    display: field.label
+                  }
+                ]
+              },
+              valueQuantity: {
+                value: parseFloat(val),
+                unit: field.unit,
+                system: 'http://unitsofmeasure.org'
+                // code could be 'mmol/L', 'mg/dL', etc. if you want to be very precise
+              },
+              // Convert something like '9/19/21 12:30' into an ISO date/time
+              effectiveDateTime: parseToISODate(date)
+            };
+  
+            labsToSend.push(observation);
+          }
+        });
       });
+  
+      // Now send each built Observation to your Node server
+      for (const obs of labsToSend) {
+        const response = await fetch('http://localhost:3001/fhir/Observation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(obs)
+        });
+        if (!response.ok) {
+          throw new Error('Failed to create lab Observation');
+        }
+      }
+  
+      // Optionally save input data locally
       localStorage.setItem('chemistry', JSON.stringify(chemistryValues));
-      setSaveSuccess(true);
+      setSaveSuccess(true);  // e.g., show "Save successful!"
     } catch (err) {
+      console.error(err);
       setError('Error saving chemistry values');
     }
-  };
-
-  const handleChemistryChange = (field, date, value) => {
-    setChemistryValues(prev => ({
-      ...prev,
-      [`${field}-${date}`]: value
-    }));
   };
 
   const handleVitalsChange = (field, value) => {

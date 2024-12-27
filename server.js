@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const fhirClient = new FhirClient({
-  baseUrl: 'https://r4.smarthealthit.org'
+  baseUrl: 'http://hapi.fhir.org/baseR4'
 });
 
 app.post('/fhir/Observation', async (req, res) => {
@@ -20,7 +20,7 @@ app.post('/fhir/Observation', async (req, res) => {
     console.log('Observation created:', result);
     res.json(result);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error creating observation:', error);
     res.status(500).json({ error: error.message });
   }
 });

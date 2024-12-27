@@ -100,13 +100,16 @@ const MedicalResults = () => {
               }
             ]
           },
+          subject: {
+            reference: 'Patient/example' // You can replace "example" with a real Patient ID if you have one
+          },
+          effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.temperature),
             unit: '°F',
             system: 'http://unitsofmeasure.org',
             code: 'degF'
-          },
-          effectiveDateTime: new Date().toISOString()
+          }
         });
       }
   
@@ -124,12 +127,15 @@ const MedicalResults = () => {
               }
             ]
           },
+          subject: {
+            reference: 'Patient/example'
+          },
+          effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.height),
             unit: 'in',
             system: 'http://unitsofmeasure.org'
-          },
-          effectiveDateTime: new Date().toISOString()
+          }
         });
       }
   
@@ -147,12 +153,15 @@ const MedicalResults = () => {
               }
             ]
           },
+          subject: {
+            reference: 'Patient/example'
+          },
+          effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.weight),
             unit: 'lbs.',
             system: 'http://unitsofmeasure.org'
-          },
-          effectiveDateTime: new Date().toISOString()
+          }
         });
       }
   
@@ -170,12 +179,15 @@ const MedicalResults = () => {
               }
             ]
           },
+          subject: {
+            reference: 'Patient/example'
+          },
+          effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.systolicBloodPressure),
             unit: 'mmHg',
             system: 'http://unitsofmeasure.org'
-          },
-          effectiveDateTime: new Date().toISOString()
+          }
         });
       }
   
@@ -193,35 +205,45 @@ const MedicalResults = () => {
               }
             ]
           },
+          subject: {
+            reference: 'Patient/example'
+          },
+          effectiveDateTime: new Date().toISOString(),
           valueQuantity: {
             value: parseFloat(vitalsValues.diastolicBloodPressure),
             unit: 'mmHg',
             system: 'http://unitsofmeasure.org'
-          },
-          effectiveDateTime: new Date().toISOString()
+          }
         });
       }
   
-      // Now POST each Observation to your Node server
+      // Now POST each Observation to your Node server (which then forwards to FHIR, presumably)
       for (const obs of observationsToSend) {
-        const response = await fetch('https://mockepic.onrender.com', {
+        const response = await fetch('https://mockepic.onrender.com/fhir/Observation', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/fhir+json',
+            'Accept': 'application/fhir+json'
+          },
           body: JSON.stringify(obs)
         });
+  
         if (!response.ok) {
-          throw new Error('Failed to create observation');
+          // Check if there's a more detailed error message:
+          const errorText = await response.text();
+          console.error('Failed to create observation:', errorText);
+          throw new Error(`Failed to create observation: ${errorText}`);
         }
       }
   
-      // Optionally store the raw input in localStorage
+      // Store the raw input in localStorage (optional)
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
       setSaveSuccess(true); // Show "Save successful" message
     } catch (err) {
       console.error(err);
       setError('Error saving vitals');
     }
-  };
+  };  
   
 
   const loadChemistry = async () => {
@@ -287,14 +309,17 @@ const MedicalResults = () => {
                   }
                 ]
               },
+              subject: {
+                reference: 'Patient/example' 
+                // You can replace "example" with a real Patient ID if you have one
+              },
+              effectiveDateTime: parseToISODate(date), // Convert '9/19/21 12:30' to an ISO string
               valueQuantity: {
                 value: parseFloat(val),
                 unit: field.unit,
                 system: 'http://unitsofmeasure.org'
                 // code could be 'mmol/L', 'mg/dL', etc. if you want to be very precise
-              },
-              // Convert something like '9/19/21 12:30' into an ISO date/time
-              effectiveDateTime: parseToISODate(date)
+              }
             };
   
             labsToSend.push(observation);
@@ -304,13 +329,19 @@ const MedicalResults = () => {
   
       // Now send each built Observation to your Node server
       for (const obs of labsToSend) {
-        const response = await fetch('https://mockepic.onrender.com', {
+        const response = await fetch('https://mockepic.onrender.com/fhir/Observation', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/fhir+json',
+            'Accept': 'application/fhir+json'
+          },
           body: JSON.stringify(obs)
         });
+  
         if (!response.ok) {
-          throw new Error('Failed to create lab Observation');
+          const errorText = await response.text();
+          console.error('Failed to create lab Observation:', errorText);
+          throw new Error(`Failed to create lab Observation: ${errorText}`);
         }
       }
   
@@ -321,7 +352,7 @@ const MedicalResults = () => {
       console.error(err);
       setError('Error saving chemistry values');
     }
-  };
+  };  
 
   const handleVitalsChange = (field, value) => {
     setVitalsValues(prev => ({

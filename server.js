@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const fhirClient = new FhirClient({
-  baseUrl: 'http://hapi.fhir.org/baseR4'
+  baseUrl: 'https://r4.smarthealthit.org'
 });
 
 app.post('/fhir/Observation', async (req, res) => {

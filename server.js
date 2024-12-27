@@ -10,31 +10,14 @@ const fhirClient = new FhirClient({
   baseUrl: 'https://hapi.fhir.org/baseR4'
 });
 
-app.post('/api/observations', async (req, res) => {
+app.post('/api/patients', async (req, res) => {
   try {
-    console.log('Received observation:', req.body);
+    console.log('Creating patient:', req.body);
     const result = await fhirClient.create({
-      resourceType: 'Observation',
+      resourceType: 'Patient',
       body: req.body
     });
-    console.log('Created observation:', result);
-    res.json(result);
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/observations', async (req, res) => {
-  try {
-    const result = await fhirClient.search({
-      resourceType: 'Observation',
-      searchParams: {
-        _count: 10,
-        _sort: '-date'
-      }
-    });
-    console.log('Retrieved observations:', result);
+    console.log('Patient created:', result);
     res.json(result);
   } catch (error) {
     console.error('Error:', error);

@@ -7,6 +7,7 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "fhir-kit-client": "^1.9.2",
+    "fhirclient": "^2.5.4",
     "lucide-react": "^0.468.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

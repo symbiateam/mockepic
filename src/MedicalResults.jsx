@@ -154,11 +154,13 @@ const MedicalResults = () => {
 
   const saveVitals = async () => {
     if (!client) {
+      console.log('Auth state:', await FHIR.oauth2.ready());
       setError('Not authenticated');
       return;
     }
    
     try {
+      console.log('Building observations...');
       const observationsToSend = [];
       
       if (vitalsValues.temperature) {
@@ -284,7 +286,15 @@ const MedicalResults = () => {
             code: 'mm[Hg]'
           }
         });
+      
+      console.log('Observations to send:', observationsToSend);
+  
+      for (const obs of observationsToSend) {
+        console.log('Sending observation:', obs);
+        await client.create(obs);
+        console.log('Observation sent successfully');
       }
+
       
       for (const obs of observationsToSend) {
         await client.create(obs);
@@ -293,10 +303,10 @@ const MedicalResults = () => {
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
       setSaveSuccess(true);
     } catch (err) {
-      console.error(err);
-      setError('Error saving vitals');
+      console.log('Error details:', err);
+      setError(`Error saving vitals: ${err.message}`);
     }
-   };
+  };
   
 
   const loadChemistry = async () => {

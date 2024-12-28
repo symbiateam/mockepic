@@ -268,20 +268,24 @@ const MedicalResults = () => {
       console.log('Observations to send:', observationsToSend);
   
       for (const obs of observationsToSend) {
-        console.log('Sending observation:', obs);
-        try {
-          const result = await client.create({
-            resourceType: 'Observation',
-            body: obs,
-            options: {
-              baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
-            }
-          });
-          console.log('Observation result:', result);
-        } catch (err) {
-          console.error('Error sending observation:', err);
-          throw err;
+        console.log('Client state before request:', client.state);
+        console.log('Attempted server URL:', client.state.serverUrl);
+        
+        // Force the URL directly in the request
+        const result = await fetch('https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir/Observation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/fhir+json',
+            'Accept': 'application/fhir+json'
+          },
+          body: JSON.stringify(obs)
+        });
+        
+        if (!result.ok) {
+          throw new Error(`HTTP error! status: ${result.status}`);
         }
+        const data = await result.json();
+        console.log('Response:', data);
       }
    
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));

@@ -15,6 +15,6 @@ FHIR.oauth2.authorize({
   clientId: 'whatever',
   scope: 'launch/patient patient/*.write patient/*.read',
   redirectUri: window.location.origin + '/oauth-callback',
-  iss: 'https://r4.smarthealthit.org', // Changed issuer URL
-  fhirServiceUrl: 'https://r4.smarthealthit.org' // Added FHIR service URL
+  iss: 'https://launch.smarthealthit.org/v/r4/fhir',
+  fhirServiceUrl: 'https://launch.smarthealthit.org/v/r4/fhir'
 });

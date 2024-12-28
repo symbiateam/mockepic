@@ -1,24 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import FHIR from 'fhirclient';
 
-const checkFHIRServerAccess = async () => {
-  try {
-    if (client) {
-      console.log('FHIR Client State:', client.state);
-      console.log('FHIR Server URL:', client.state.serverUrl);
-      
-      // Test server connectivity
-      const response = await fetch('https://launch.smarthealthit.org/v/r4/fhir/metadata');
-      const data = await response.json();
-      console.log('FHIR Server Response:', data);
-    } else {
-      console.log('No FHIR client available');
-    }
-  } catch (error) {
-    console.error('FHIR Server Access Error:', error);
-  }
-};
-
 const MedicalResults = () => {
   const [activeTab, setActiveTab] = useState('vitals');
   const [client, setClient] = useState(null);
@@ -34,6 +16,24 @@ const MedicalResults = () => {
     diastolicBloodPressure: ''
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const checkFHIRServerAccess = async () => {
+    try {
+      if (client) {
+        console.log('FHIR Client State:', client.state);
+        console.log('FHIR Server URL:', client.state.serverUrl);
+        
+        // Test server connectivity
+        const response = await fetch('https://launch.smarthealthit.org/v/r4/fhir/metadata');
+        const data = await response.json();
+        console.log('FHIR Server Response:', data);
+      } else {
+        console.log('No FHIR client available');
+      }
+    } catch (error) {
+      console.error('FHIR Server Access Error:', error);
+    }
+  };
 
   const chemistryFields = [
     { name: 'sodium', label: 'Sodium', code: '2951-2', unit: 'mmol/L' },
@@ -129,6 +129,7 @@ const MedicalResults = () => {
    
     try {
       console.log('Building observations...');
+      const observationsToSend = [];
       
       if (vitalsValues.temperature) {
         observationsToSend.push({
@@ -260,7 +261,13 @@ const MedicalResults = () => {
       for (const obs of observationsToSend) {
         console.log('Sending observation:', obs);
         try {
-          const result = await client.create(obs);
+          const result = await client.create({
+            resourceType: 'Observation',
+            body: obs,
+            options: {
+              baseUrl: 'https://launch.smarthealthit.org/v/r4/fhir'
+            }
+          });
           console.log('Observation result:', result);
         } catch (err) {
           console.error('Error sending observation:', err);
@@ -355,7 +362,13 @@ const MedicalResults = () => {
       });
    
       for (const obs of labsToSend) {
-        await client.create(obs);
+        await client.create({
+          resourceType: 'Observation',
+          body: obs,
+          options: {
+            baseUrl: 'https://launch.smarthealthit.org/v/r4/fhir'
+          }
+        });
       }
    
       localStorage.setItem('chemistry', JSON.stringify(chemistryValues));
@@ -370,6 +383,13 @@ const MedicalResults = () => {
     setVitalsValues(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  const handleChemistryChange = (field, date, value) => {
+    setChemistryValues(prev => ({
+      ...prev,
+      [`${field}-${date}`]: value
     }));
   };
 

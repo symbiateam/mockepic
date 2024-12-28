@@ -81,12 +81,7 @@ const MedicalResults = () => {
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const result = await client.search({
-        resourceType: 'Observation',
-        searchParams: {
-          category: 'vital-signs'
-        }
-      });
+      const result = await client.request(`/Observation?category=vital-signs`);
       const data = result.data;
       const newVitals = {};
       data.forEach(observation => {
@@ -259,12 +254,7 @@ const MedicalResults = () => {
   const loadChemistry = async () => {
     setIsLoading(true);
     try {
-      const result = await client.search({
-        resourceType: 'Observation',
-        searchParams: {
-          category: 'laboratory'
-        }
-      });
+      const result = await client.request(`/Observation?category=laboratory`);
       const data = result.data;
       const newChemistry = {};
       data.forEach(observation => {

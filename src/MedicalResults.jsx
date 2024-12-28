@@ -44,107 +44,50 @@ const MedicalResults = () => {
 
   const dates = ['9/19/21 12:30', '9/19/21 10:00', '9/18/21 15:00', '9/18/21 11:00', '9/13/21 13:00'];
 
-    useEffect(() => {
-      FHIR.oauth2.ready()
-        .then(clientInstance => {
-          console.log('FHIR client initialized:', clientInstance);
-          setClient(clientInstance);
-        })
-        .catch(err => {
-          console.error('FHIR auth error:', err);
-        });
-    }, []);
+    // useEffect(() => {
+    //   FHIR.oauth2.ready()
+    //     .then(clientInstance => {
+    //       console.log('FHIR client initialized:', clientInstance);
+    //       setClient(clientInstance);
+    //     })
+    //     .catch(err => {
+    //       console.error('FHIR auth error:', err);
+    //     });
+    // }, []);
   
-  // useEffect(() => {
-  //   FHIR.oauth2.ready()
-  //     .then(clientInstance => {
-  //       setClient(clientInstance);
-  //       const savedVitals = localStorage.getItem('vitals');
-  //       const savedChemistry = localStorage.getItem('chemistry');
+  useEffect(() => {
+    FHIR.oauth2.ready()
+      .then(clientInstance => {
+        setClient(clientInstance);
+        const savedVitals = localStorage.getItem('vitals');
+        const savedChemistry = localStorage.getItem('chemistry');
         
-  //       if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
-  //       if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
+        if (savedVitals) setVitalsValues(JSON.parse(savedVitals));
+        if (savedChemistry) setChemistryValues(JSON.parse(savedChemistry));
         
-  //       if (activeTab === 'vitals') {
-  //         loadVitals();
-  //       } else {
-  //         loadChemistry();
-  //       }
-  //     })
-  //     .catch(err => {
-  //       setError('Authentication failed');
-  //       console.error(err);
-  //     });
-  // }, [activeTab]);
-
-  const fetchPatientData = async (fhirClient) => {
-    if (!fhirClient) return;
-    setIsLoading(true);
-    try {
-      const observations = await fhirClient.request('Observation', {
-        patient: fhirClient.patient.id,
-        category: 'vital-signs'
-      });
-      // Process observations and update state
-      setDocRefs(observations.entry || []);
-    } catch (err) {
-      setError('Failed to fetch patient data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!client) {
-      setError('Not authenticated');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const observation = {
-        resourceType: 'Observation',
-        status: 'preliminary',
-        category: [{
-          coding: [{
-            system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-            code: 'vital-signs',
-            display: 'Vital Signs'
-          }]
-        }],
-        code: {
-          coding: [{
-            system: 'http://loinc.org',
-            code: '8310-5',
-            display: 'Body temperature'
-          }]
-        },
-        valueQuantity: {
-          value: parseFloat(vitalsValues.temperature),
-          unit: '°C',
-          system: 'http://unitsofmeasure.org',
-          code: 'Cel'
+        if (activeTab === 'vitals') {
+          loadVitals();
+        } else {
+          loadChemistry();
         }
-      };
-
-      await client.create(observation);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
-      setError('Failed to save observation');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      })
+      .catch(err => {
+        setError('Authentication failed');
+        console.error(err);
+      });
+  }, [activeTab]);
 
   // Load vitals from FHIR server
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const result = await client.create(obs);
-      const data = await response.json();
+      const result = await client.search({
+        resourceType: 'Observation',
+        searchParams: {
+          category: 'vital-signs'
+        }
+      });
+      const data = result.data;
       const newVitals = {};
       data.forEach(observation => {
         const matchingField = vitalsFields.find(field => field.code === observation.code?.coding?.[0]?.code);
@@ -152,10 +95,7 @@ const MedicalResults = () => {
           newVitals[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
         }
       });
-      setVitalsValues(prev => ({
-        ...prev,
-        ...newVitals
-      }));
+      setVitalsValues(prev => ({...prev, ...newVitals}));
     } catch (err) {
       setError('Error loading vital signs');
       console.error(err);
@@ -298,6 +238,7 @@ const MedicalResults = () => {
             code: 'mm[Hg]'
           }
         });
+      }
       
       console.log('Observations to send:', observationsToSend);
   
@@ -305,11 +246,6 @@ const MedicalResults = () => {
         console.log('Sending observation:', obs);
         await client.create(obs);
         console.log('Observation sent successfully');
-      }
-
-      
-      for (const obs of observationsToSend) {
-        await client.create(obs);
       }
    
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));
@@ -320,15 +256,21 @@ const MedicalResults = () => {
     }
   };
   
-
   const loadChemistry = async () => {
     setIsLoading(true);
     try {
-      const result = await client.create(obs);
-      const data = await response.json();
+      const result = await client.search({
+        resourceType: 'Observation',
+        searchParams: {
+          category: 'laboratory'
+        }
+      });
+      const data = result.data;
       const newChemistry = {};
       data.forEach(observation => {
-        const matchingField = chemistryFields.find(field => field.code === observation.code?.coding?.[0]?.code);
+        const matchingField = chemistryFields.find(field => 
+          field.code === observation.code?.coding?.[0]?.code
+        );
         if (matchingField) {
           newChemistry[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
         }

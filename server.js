@@ -5,14 +5,17 @@ const session = require('express-session');
 
 const app = express();
 
-// Keep only one instance of each middleware at the top
+// Replace window.location.origin with your deployed URL
+const BASE_URL = process.env.BASE_URL || 'https://mockepic.onrender.com';
+
 app.use(cors({
   origin: true,
   credentials: true
 }));
 app.use(express.json());
+
 app.use(session({
-  secret: 'your-secret-key',
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: true,
   cookie: { secure: true }
@@ -26,10 +29,9 @@ const fhirClient = new FhirClient({
   }
 });
 
-// Add SMART auth configuration
 const smartConfig = {
   clientId: 'whatever',
-  redirectUri: window.location.origin + '/oauth-callback',
+  redirectUri: `${BASE_URL}/oauth-callback`,
   scope: 'launch/patient patient/*.read patient/*.write'
 };
 

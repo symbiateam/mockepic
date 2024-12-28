@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import FHIR from 'fhirclient';
 
+const checkFHIRServerAccess = async () => {
+  try {
+    if (client) {
+      console.log('FHIR Client State:', client.state);
+      console.log('FHIR Server URL:', client.state.serverUrl);
+      
+      // Test server connectivity
+      const response = await fetch('https://launch.smarthealthit.org/v/r4/fhir/metadata');
+      const data = await response.json();
+      console.log('FHIR Server Response:', data);
+    } else {
+      console.log('No FHIR client available');
+    }
+  } catch (error) {
+    console.error('FHIR Server Access Error:', error);
+  }
+};
+
 const MedicalResults = () => {
   const [activeTab, setActiveTab] = useState('vitals');
   const [client, setClient] = useState(null);
@@ -58,7 +76,10 @@ const MedicalResults = () => {
   useEffect(() => {
     FHIR.oauth2.ready()
       .then(clientInstance => {
+        console.log('FHIR client initialized:', clientInstance);
         setClient(clientInstance);
+        checkFHIRServerAccess(); // Add this line
+        
         const savedVitals = localStorage.getItem('vitals');
         const savedChemistry = localStorage.getItem('chemistry');
         
@@ -72,8 +93,8 @@ const MedicalResults = () => {
         }
       })
       .catch(err => {
+        console.error('FHIR Authentication Error:', err);
         setError('Authentication failed');
-        console.error(err);
       });
   }, [activeTab]);
 
@@ -99,16 +120,15 @@ const MedicalResults = () => {
   };
 
   const saveVitals = async () => {
-    console.log('Current client:', client);
+    console.log('Current client state:', client?.state);
     if (!client) {
-      console.log('Auth state:', await FHIR.oauth2.ready());
+      console.log('No FHIR client available');
       setError('Not authenticated');
       return;
     }
    
     try {
       console.log('Building observations...');
-      const observationsToSend = [];
       
       if (vitalsValues.temperature) {
         observationsToSend.push({
@@ -239,8 +259,13 @@ const MedicalResults = () => {
   
       for (const obs of observationsToSend) {
         console.log('Sending observation:', obs);
-        await client.create(obs);
-        console.log('Observation sent successfully');
+        try {
+          const result = await client.create(obs);
+          console.log('Observation result:', result);
+        } catch (err) {
+          console.error('Error sending observation:', err);
+          throw err;
+        }
       }
    
       localStorage.setItem('vitals', JSON.stringify(vitalsValues));

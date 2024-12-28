@@ -17,3 +17,15 @@ FHIR.oauth2.authorize({
   iss: 'https://launch.smarthealthit.org/v/r4/sim/eyJoIjoiMSIsImkiOiIxIiwiaiI6IjEifQ/fhir',
   completeInTarget: true
 });
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
+app.use(session({
+  secret: 'your-secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}));

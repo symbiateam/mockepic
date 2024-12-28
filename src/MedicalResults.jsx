@@ -22,9 +22,9 @@ const MedicalResults = () => {
       if (client) {
         console.log('FHIR Client State:', client.state);
         console.log('FHIR Server URL:', client.state.serverUrl);
+        console.log('Client Config:', client.state.serverUrl);
         
-        // Test server connectivity
-        const response = await fetch('https://launch.smarthealthit.org/v/r4/fhir/metadata');
+        const response = await fetch('https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir/metadata');
         const data = await response.json();
         console.log('FHIR Server Response:', data);
       } else {
@@ -102,15 +102,24 @@ const MedicalResults = () => {
   const loadVitals = async () => {
     setIsLoading(true);
     try {
-      const result = await client.request(`/Observation?category=vital-signs`);
-      const data = result.data;
-      const newVitals = {};
-      data.forEach(observation => {
-        const matchingField = vitalsFields.find(field => field.code === observation.code?.coding?.[0]?.code);
-        if (matchingField) {
-          newVitals[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
+      const result = await client.request({
+        url: '/Observation?category=vital-signs',
+        options: {
+          baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
         }
       });
+      const newVitals = {};
+      if (result.entry) {
+        result.entry.forEach(entry => {
+          const observation = entry.resource;
+          const matchingField = vitalsFields.find(field => 
+            field.code === observation.code?.coding?.[0]?.code
+          );
+          if (matchingField) {
+            newVitals[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
+          }
+        });
+      }
       setVitalsValues(prev => ({...prev, ...newVitals}));
     } catch (err) {
       setError('Error loading vital signs');
@@ -265,7 +274,7 @@ const MedicalResults = () => {
             resourceType: 'Observation',
             body: obs,
             options: {
-              baseUrl: 'https://launch.smarthealthit.org/v/r4/fhir'
+              baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
             }
           });
           console.log('Observation result:', result);
@@ -286,17 +295,24 @@ const MedicalResults = () => {
   const loadChemistry = async () => {
     setIsLoading(true);
     try {
-      const result = await client.request(`/Observation?category=laboratory`);
-      const data = result.data;
-      const newChemistry = {};
-      data.forEach(observation => {
-        const matchingField = chemistryFields.find(field => 
-          field.code === observation.code?.coding?.[0]?.code
-        );
-        if (matchingField) {
-          newChemistry[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
+      const result = await client.request({
+        url: '/Observation?category=laboratory',
+        options: {
+          baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
         }
       });
+      const newChemistry = {};
+      if (result.entry) {
+        result.entry.forEach(entry => {
+          const observation = entry.resource;
+          const matchingField = chemistryFields.find(field => 
+            field.code === observation.code?.coding?.[0]?.code
+          );
+          if (matchingField) {
+            newChemistry[matchingField.name] = observation.valueQuantity?.value?.toString() || '';
+          }
+        });
+      }
       setChemistryValues(newChemistry);
     } catch (err) {
       setError('Error loading chemistry values');
@@ -366,7 +382,7 @@ const MedicalResults = () => {
           resourceType: 'Observation',
           body: obs,
           options: {
-            baseUrl: 'https://launch.smarthealthit.org/v/r4/fhir'
+            baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir'
           }
         });
       }

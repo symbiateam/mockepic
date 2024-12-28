@@ -4,16 +4,22 @@ const FhirClient = require('fhir-kit-client');
 const session = require('express-session');
 
 const app = express();
-app.use(cors());
+
+// Keep only one instance of each middleware at the top
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
 app.use(session({
   secret: 'your-secret-key',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: { secure: true }
 }));
 
 const fhirClient = new FhirClient({
-  baseUrl: 'https://r4.smarthealthit.org',
+  baseUrl: 'https://launch.smarthealthit.org/v/r4/sim/eyJrIjoiMSIsImIiOiJmMDQ2MjkzNi1lYjRiLTRkYTEtYjQ1YS1mYmQ5NmViZjhjY2IiLCJlIjoic21hcnQtUHJhY3RpdGlvbmVyLTcxNjE0NTAyIn0/fhir',
   customHeaders: {
     'Accept': 'application/fhir+json',
     'Content-Type': 'application/fhir+json'
@@ -22,9 +28,9 @@ const fhirClient = new FhirClient({
 
 // Add SMART auth configuration
 const smartConfig = {
-  clientId: 'your-client-id',
-  redirectUri: 'your-redirect-uri',
-  scope: 'launch/patient patient/*.read'
+  clientId: 'whatever',
+  redirectUri: window.location.origin + '/oauth-callback',
+  scope: 'launch/patient patient/*.read patient/*.write'
 };
 
 app.get('/auth', (req, res) => {
